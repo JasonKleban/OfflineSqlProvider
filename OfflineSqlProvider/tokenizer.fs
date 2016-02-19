@@ -1,4 +1,4 @@
-﻿module sqlSchema
+﻿module sqlTokenizer
 
 open System
 open FParsec
@@ -56,31 +56,35 @@ let ws : Parser<_> =
 
 let wsOrComments = ws <|> comment
 
-let fileOfComments = many1 wsOrComments .>> eof
-
 let quotedIdentifier : Parser<_> =
-    let textExceptUnescapedTerminator terminator = (pchar terminator >>. pchar terminator) <|> anyChar
-    choice [
-        (pchar '[' >>. textExceptUnescapedTerminator ']' .>> pchar ']')
-        (pchar '"' >>. textExceptUnescapedTerminator '"' .>> pchar '"')
-        (pchar '\'' >>. textExceptUnescapedTerminator '\'' .>> pchar '\'') ] 
-    |>> string
+    let textExceptUnescapedTerminator terminator = many1 (notFollowedBy (pstring terminator) >>. anyChar) |>> String.Concat
+    getPosition
+    .>>. (choice [
+            (pstring "[" .>>. textExceptUnescapedTerminator "]" .>>. pstring "]")
+            (pstring "'" .>>. textExceptUnescapedTerminator "'" .>>. pstring "'")
+            (pstring "\"" .>>. textExceptUnescapedTerminator "\"" .>>. pstring "\"") ] 
+            |>> (fun ((a, b), c) -> a + b + c))
+    .>>. getPosition
+    |>> (fun ((posBegin, text), posEnd) -> Token { text = text ; posBegin = posBegin ; posEnd = posEnd })
 
-//let unquotedIdentifier : Parser<_> = 
-//    let isAsciiIdStart    = fun c -> isAsciiLetter c || c = '_'
-//    let isAsciiIdContinue = fun c -> isAsciiLetter c || isDigit c || c = '_' || c = '$' || c = '@'
-//    identifier (IdentifierOptions(
-//                    isAsciiIdStart = isAsciiIdStart,
-//                    isAsciiIdContinue = isAsciiIdContinue,
-//                    normalization = System.Text.NormalizationForm.FormKC,
-//                    normalizeBeforeValidation = true,
-//                    allowAllNonAsciiCharsInPreCheck = true))
+let operator : Parser<_> =
+    getPosition
+    .>>. choice [
+            pstring "+" ; pstring "-" ; pstring "*" ; pstring "/" ; pstring "%" ; pstring "~"
+            pstring "&" ; pstring "|" ; pstring "^"
+            pstring "=" ; pstring ">" ; pstring "<" ; pstring ">=" ; pstring "<=" ; pstring "<>" ; pstring "!=" ; pstring "!<" ; pstring "!>"
+            pstring "+=" ; pstring "-=" ; pstring "*=" ; pstring "/=" ; pstring "%=" ; pstring "&=" ; pstring "^=" ; pstring "|="
+            pstring "::" ; pstring ";"
+        ]
+    .>>. getPosition
+    |>> (fun ((posBegin, text), posEnd) -> Token { text = text ; posBegin = posBegin ; posEnd = posEnd })
 
-let identifier = quotedIdentifier // <|> unquotedIdentifier
+let token = 
+    getPosition
+    .>>. (many1 (notFollowedBy (ws <|> comment <|> quotedIdentifier <|> operator) >>. anyChar) |>> String.Concat)
+    .>>. getPosition
+    |>> (fun ((posBegin, text), posEnd) -> Token { text = text ; posBegin = posBegin ; posEnd = posEnd })
+    
+let fileOfComments = many1 (choice [ ws ; comment ; quotedIdentifier ; operator ; token ]) .>> eof
 
-let tableDef : Parser<_> = 
-    spaces 
-    >>. pstringCI "CREATE" 
-    >>. spaces 
-    >>. pstringCI "TABLE"
-    >>. spaces
+let identifier = quotedIdentifier

@@ -4,21 +4,21 @@ module Program
 #I @"packages\FParsec.1.0.2\lib\net40-client\"
 #r @"FParsecCS.dll"
 #r @"FParsec.dll"
-#load "sqlSchema.fs"
+#load "tokenizer.fs"
 #endif
 
 open System
 open FParsec
-open sqlSchema
+open sqlTokenizer
     
 let test p str =
     match run p str with
     | Success(result, _, _)   -> printfn "Success: %A" result
     | Failure(errorMsg, _, _) -> printfn "Failure: %s" errorMsg
 
-test tableDef "  CREATE TABLE dbo.whatever"
-
 test fileOfComments """
+
+SELECT 0; GO
 
 /*
 -- Whatever
@@ -27,9 +27,13 @@ test fileOfComments """
       */
 */
 
+CREATE TABLE [dbo].[whatever i want] (
+    ID INT IDENTITY CONSTRAINT PK_whatever PRIMARY KEY
+)
+
 """
 
-[<EntryPoint>]
-let main argv = 
-    printfn "%A" argv
-    0
+//[<EntryPoint>]
+//let main argv = 
+//    printfn "%A" argv
+//    0
