@@ -5,18 +5,20 @@ module Program
 #r @"FParsecCS.dll"
 #r @"FParsec.dll"
 #load "tokenizer.fs"
+#load "sqlDdl.fs"
 #endif
 
 open System
 open FParsec
 open sqlTokenizer
+open sqlDdl
     
 let test p str =
     match run p str with
     | Success(result, _, _)   -> printfn "Success: %A" result
     | Failure(errorMsg, _, _) -> printfn "Failure: %s" errorMsg
 
-test fileOfComments """
+test sqlCodeListingTokenizer """
 
 SELECT 0; GO
 
@@ -32,8 +34,3 @@ CREATE TABLE [dbo].[whatever i want] (
 )
 
 """
-
-//[<EntryPoint>]
-//let main argv = 
-//    printfn "%A" argv
-//    0
